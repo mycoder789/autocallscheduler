@@ -7,8 +7,8 @@
  *
  *             http://www.apache.org/licenses/LICENSE-2.0
  *
- *       Unless required by applicable law or agreed to in writing,
- *       software distributed under the License is distributed on an "AS IS" BASIS,
+ *       Unless required by applicable law or agreed to in writing, software
+ *       distributed under the License is distributed on an "AS IS" BASIS,
  *       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *       See the License for the specific language governing permissions and
  *       limitations under the License.
@@ -41,7 +41,6 @@ import kotlinx.android.synthetic.main.activity_main.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-
 class CallerActivity : BaseActivity(), TimerTaskListener {
     private val CALL_PHONE = Manifest.permission.CALL_PHONE
 
@@ -52,39 +51,29 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
         setupObservers()
     }
 
-    /* override fun onResume() {
-         super.onResume()
-         checkPermission(CALL_PHONE)
-     }*/
-
     private fun initListeners() {
         btnConfirm.setOnClickListener {
             edtNumber.text?.let { input ->
-                if (input.isNotEmpty())
+                if (input.isNotEmpty()) {
                     startActivity(Intent(this, ScheduleActivity::class.java))
-                else Toast.makeText(
-                    applicationContext,
-                    "Please enter your number",
-                    Toast.LENGTH_SHORT
-                ).show()
+                } else {
+                    showToast("Please enter your number")
+                }
             }
         }
+
         btnCall.setOnClickListener {
             edtNumber.text?.let { input ->
-                if (input.isNotEmpty())
+                if (input.isNotEmpty()) {
                     startAutoCall()
-                else Toast.makeText(
-                    applicationContext,
-                    "Please enter your number",
-                    Toast.LENGTH_SHORT
-                ).show()
-
+                } else {
+                    showToast("Please enter your number")
+                }
             }
         }
+
         btnClear.setOnClickListener {
-            editText2.text?.clear()
-            edtNumber.text?.clear()
-            editText4.text?.clear()
+            clearInputFields()
         }
     }
 
@@ -99,51 +88,56 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
                     directPhoneCall()
                 }
                 is AppViewModel.AppPermissions.NOT_GRANTED -> {
-                    Toast.makeText(this, "Permission is required", Toast.LENGTH_SHORT).show()
+                    showToast("Permission is required")
                 }
                 is AppViewModel.AppPermissions.SHOW_RATIONALE -> {
+                    // Handle rationale display if needed
                 }
             }
         })
 
         viewModel.observeScheduler(this, Observer {
-            with(it) {
-                try {
-                    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm aa")
-                    val date1 = Date()
-                    val date2 = sdf.parse("$year-$month-$day $hour:$min $format")
-                    error(this, "date1 $date1    ,    date2 $date2")
+            handleScheduledCall(it)
+        })
+    }
 
-                    if (date1.compareTo(date2) > 0) {
-                        info("app", "Date1 is after Date2");
-                        startAutoCall()
-                    } else if (date1.compareTo(date2) < 0) {
-                        info("app", "Date1 is before Date2");
-                        val duration: Long = date2.getTime() - date1.getTime()
-                        startTimerDurtionCall(duration)
-                        btnConfirm.visibility = View.INVISIBLE
-                    } else if (date1.compareTo(date2) == 0) {
-                        info("app", "Date1 is equal to Date2");
-                        startAutoCall()
-                    }
+    private fun handleScheduledCall(schedule: AppViewModel.Scheduler) {
+        try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm aa")
+            val date1 = Date()
+            val date2 = sdf.parse("${schedule.year}-${schedule.month}-${schedule.day} ${schedule.hour}:${schedule.min} ${schedule.format}")
+            error(this, "date1 $date1    ,    date2 $date2")
 
-                } catch (e: Exception) {
-                    e.printStackTrace()
+            when {
+                date1.after(date2) -> {
+                    info("app", "Date1 is after Date2")
+                    startAutoCall()
+                }
+                date1.before(date2) -> {
+                    info("app", "Date1 is before Date2")
+                    val duration: Long = date2.time - date1.time
+                    startTimerDurationCall(duration)
+                    btnConfirm.visibility = View.INVISIBLE
+                }
+                else -> {
+                    info("app", "Date1 is equal to Date2")
+                    startAutoCall()
                 }
             }
-        })
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun startAutoCall() {
         if (Build.VERSION.SDK_INT < 23) {
-            viewModel.permissionObservable.value =
-                AppViewModel.AppPermissions.NO_PERMISSION_REQUIRED()
+            viewModel.permissionObservable.value = AppViewModel.AppPermissions.NO_PERMISSION_REQUIRED()
         } else {
             checkPermission(CALL_PHONE)
         }
     }
 
-    private fun startTimerDurtionCall(duration:Long){
+    private fun startTimerDurationCall(duration: Long) {
         RTimer(duration, 1000).apply {
             start()
             setListener(this@CallerActivity)
@@ -153,12 +147,12 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
     @SuppressLint("MissingPermission")
     private fun directPhoneCall() {
         val phoneNo = getPhoneNoFromFields()
-        startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + phoneNo)))
+        startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phoneNo")))
     }
 
-    private fun getPhoneNoFromFields() = editText2.text.toString() + edtNumber.text.toString() + editText4.text.toString()
+    private fun getPhoneNoFromFields() = "${editText2.text}${edtNumber.text}${editText4.text}"
 
-    fun checkPermission(permission: String) {
+    private fun checkPermission(permission: String) {
         if (hasPermission(permission)) {
             viewModel.permissionObservable.value = AppViewModel.AppPermissions.GRANTED()
         } else {
@@ -166,38 +160,28 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
         }
     }
 
-    fun requestPermission(permission: String) {
-        val PERMISSIONS_STORAGE = arrayOf<String>(permission)
+    private fun requestPermission(permission: String) {
         ActivityCompat.requestPermissions(
-            this, PERMISSIONS_STORAGE,
+            this, arrayOf(permission),
             const.ESSENTIAL_PERMISSIONS_REQUEST_CODE
         )
     }
 
-    fun hasPermission(permission: String): Boolean {
+    private fun hasPermission(permission: String): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
             permission
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun checkPermissionsRequestResult(
-        requestCode: Int,
-        grantResults: IntArray
-    ): AppViewModel.AppPermissions {
-        return when {
-            requestCode != const.ESSENTIAL_PERMISSIONS_REQUEST_CODE -> AppViewModel.AppPermissions.NOT_GRANTED()
-            grantResults.none { it == PackageManager.PERMISSION_DENIED } -> AppViewModel.AppPermissions.GRANTED()
-            ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-                    || ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                Manifest.permission.CAMERA
-            ) -> AppViewModel.AppPermissions.SHOW_RATIONALE()
-            else -> AppViewModel.AppPermissions.NOT_GRANTED()
-        }
+    private fun clearInputFields() {
+        editText2.text?.clear()
+        edtNumber.text?.clear()
+        editText4.text?.clear()
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -211,6 +195,18 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
         grantResults: IntArray
     ) {
         checkPermissionsRequestResult(requestCode, grantResults)
+    }
+
+    private fun checkPermissionsRequestResult(
+        requestCode: Int,
+        grantResults: IntArray
+    ): AppViewModel.AppPermissions {
+        return when {
+            requestCode != const.ESSENTIAL_PERMISSIONS_REQUEST_CODE -> AppViewModel.AppPermissions.NOT_GRANTED()
+            grantResults.none { it == PackageManager.PERMISSION_DENIED } -> AppViewModel.AppPermissions.GRANTED()
+            ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CALL_PHONE) -> AppViewModel.AppPermissions.SHOW_RATIONALE()
+            else -> AppViewModel.AppPermissions.NOT_GRANTED()
+        }
     }
 
     override fun onTimerFinished() {

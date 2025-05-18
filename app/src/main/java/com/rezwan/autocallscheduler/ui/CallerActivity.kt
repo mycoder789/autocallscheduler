@@ -222,7 +222,7 @@ class CallerActivity : BaseActivity() {
                 showToast("拨号已暂停")
                 return
             }
-            handler.postDelayed({ startCall() }, 2000)
+            handler.postDelayed({ startCall() }, 5000)
         }
     }
 

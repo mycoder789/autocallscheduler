@@ -35,7 +35,6 @@ import com.rezwan.autocallscheduler.constants.const
 import com.rezwan.autocallscheduler.ext.error
 import com.rezwan.autocallscheduler.ext.info
 import com.rezwan.autocallscheduler.helper.RTimer
-import com.rezwan.autocallscheduler.utils.StringUtils
 import com.rezwan.autocallscheduler.viewmodel.AppViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 import java.text.SimpleDateFormat
@@ -52,28 +51,9 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
     }
 
     private fun initListeners() {
+        // 仅保留确认调度按钮的点击监听
         btnConfirm.setOnClickListener {
-            edtNumber.text?.let { input ->
-                if (input.isNotEmpty()) {
-                    startActivity(Intent(this, ScheduleActivity::class.java))
-                } else {
-                    showToast("Please enter your number")
-                }
-            }
-        }
-
-        btnCall.setOnClickListener {
-            edtNumber.text?.let { input ->
-                if (input.isNotEmpty()) {
-                    startAutoCall()
-                } else {
-                    showToast("Please enter your number")
-                }
-            }
-        }
-
-        btnClear.setOnClickListener {
-            clearInputFields()
+            startActivity(Intent(this, ScheduleActivity::class.java))
         }
     }
 
@@ -150,7 +130,8 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
         startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phoneNo")))
     }
 
-    private fun getPhoneNoFromFields() = "${editText2.text}${edtNumber.text}${editText4.text}"
+    // 自动拨号从导入的号码列表中获取号码
+    private fun getPhoneNoFromFields() = "PREDEFINED_PHONE_NUMBER" // 替换为实际导入逻辑
 
     private fun checkPermission(permission: String) {
         if (hasPermission(permission)) {
@@ -172,12 +153,6 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
             this,
             permission
         ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun clearInputFields() {
-        editText2.text?.clear()
-        edtNumber.text?.clear()
-        editText4.text?.clear()
     }
 
     private fun showToast(message: String) {
@@ -217,7 +192,7 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
 
     override fun onTimerTicked(remainingTime: String) {
         runOnUiThread {
-            tvTimer.text = StringUtils.timeStringToSpan(remainingTime)
+            tvTimer.text = remainingTime
         }
     }
 }

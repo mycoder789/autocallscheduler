@@ -209,7 +209,7 @@ class CallerActivity : BaseActivity() {
 
     private fun autoDialNext() {
         if (currentCallIndex < phoneList.size) {
-            handler.postDelayed({ startCall() }, 2000) // 延迟 2 秒拨打下一个号码
+            handler.postDelayed({ startCall() }, 2000) // 延迟 5 秒拨打下一个号码
         }
     }
 

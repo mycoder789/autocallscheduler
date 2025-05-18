@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import com.rezwan.autocallscheduler.R
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.floating_window.view.*
+import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -74,33 +75,54 @@ class CallerActivity : BaseActivity() {
     }
 
     private fun selectFileForImport() {
-        importFileLauncher.launch("text/*")
+        importFileLauncher.launch("*/*")
     }
 
     private fun handleFileImport(uri: Uri) {
         try {
             val inputStream = contentResolver.openInputStream(uri)
-            val reader = BufferedReader(InputStreamReader(inputStream))
-
             val importedLines = mutableListOf<String>()
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val importKey = "import_$timestamp"
             currentImportKey = importKey
-
             var importCount = 0
-            reader.useLines { lines ->
-                lines.forEach { line ->
-                    val parts = line.trim().split(",")
-                    if (parts.isNotEmpty() && parts[0].isNotBlank()) {
-                        val number = parts[0].replace("\\s".toRegex(), "")
-                        val remark = if (parts.size > 1) parts[1] else null
+
+            val fileName = uri.lastPathSegment ?: "unknown"
+            if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+                // Parse Excel file
+                val workbook = WorkbookFactory.create(inputStream)
+                val sheet = workbook.getSheetAt(0)
+                for (row in sheet) {
+                    val numberCell = row.getCell(0)
+                    val remarkCell = if (row.physicalNumberOfCells > 1) row.getCell(1) else null
+                    val number = numberCell?.toString()?.trim()
+                    val remark = remarkCell?.toString()?.trim()
+
+                    if (!number.isNullOrBlank()) {
                         phoneList.add(PhoneEntry(number = number, remark = remark, importKey = importKey))
-                        importedLines.add(line.trim())
+                        importedLines.add("$number,${remark ?: ""}")
                         importCount++
+                    }
+                }
+                workbook.close()
+            } else {
+                // Process as TXT/CSV
+                val reader = BufferedReader(InputStreamReader(inputStream))
+                reader.useLines { lines ->
+                    lines.forEach { line ->
+                        val parts = line.trim().split(",")
+                        if (parts.isNotEmpty() && parts[0].isNotBlank()) {
+                            val number = parts[0].replace("\\s".toRegex(), "")
+                            val remark = if (parts.size > 1) parts[1] else null
+                            phoneList.add(PhoneEntry(number = number, remark = remark, importKey = importKey))
+                            importedLines.add(line.trim())
+                            importCount++
+                        }
                     }
                 }
             }
 
+            // Save imported data
             val filename = "$importKey.txt"
             openFileOutput(filename, Context.MODE_PRIVATE).use { output ->
                 importedLines.forEach { line ->

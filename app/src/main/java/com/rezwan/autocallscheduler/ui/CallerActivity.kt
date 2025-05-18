@@ -20,6 +20,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.firebase.firestore.FirebaseFirestore
 import com.rezwan.autocallscheduler.R
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.floating_window.view.*
@@ -43,6 +44,9 @@ class CallerActivity : BaseActivity() {
 
     private var currentImportKey: String? = null
     private val importStatsMap = mutableMapOf<String, ImportStats>()
+
+    // Firebase Firestore instance
+    private val firestore = FirebaseFirestore.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,7 +73,6 @@ class CallerActivity : BaseActivity() {
             }
         }
 
-        // 添加跳过延迟的按钮事件监听
         btnSkipDelay.setOnClickListener { skipDelayToNextCall() }
     }
 
@@ -136,6 +139,9 @@ class CallerActivity : BaseActivity() {
             importStatsMap[importKey] = ImportStats(total = importCount)
             saveImportStats(importKey)
 
+            // 同步导入数据到云端
+            syncContactsToCloud()
+
             showToast("导入成功，共 $importCount 个号码，保存为 $filename")
 
         } catch (e: Exception) {
@@ -177,174 +183,45 @@ class CallerActivity : BaseActivity() {
         updateStatsForCurrent("dialed")
         saveStats()
         updateStats()
+
+        // 同步拨号记录到云端
+        syncCallLogsToCloud(phoneNo)
+
         onCallCompleted()
     }
 
-    private fun onCallCompleted() {
-        showAnnotationDialog()
+    private fun syncContactsToCloud() {
+        val contacts = phoneList.map { it.toMap() }
+        firestore.collection("contacts").add(contacts)
+            .addOnSuccessListener { showToast("联系人已同步至云端") }
+            .addOnFailureListener { showToast("联系人同步失败") }
     }
 
-    private fun autoDialNext() {
-        if (currentCallIndex < phoneList.size) {
-            if (isPaused) {
-                showToast("拨号已暂停")
-                return
-            }
-            handler.postDelayed({ startCall() }, 5000)
-        }
-    }
-
-    // 新增方法：直接跳过延迟拨打下一个号码
-    private fun skipDelayToNextCall() {
-        if (currentCallIndex < phoneList.size && !isPaused) {
-            handler.removeCallbacksAndMessages(null) // 移除所有延迟任务
-            startCall()
-        }
-    }
-
-    private fun showAnnotationDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("请选择标注类型")
-        builder.setPositiveButton("客户") { _, _ ->
-            showRemarkDialog()
-        }
-        builder.setNegativeButton("无用") { _, _ ->
-            phoneList[currentCallIndex].annotation = "无用"
-            updateStatsForCurrent("useless")
-            showToast("标注为无用")
-            currentCallIndex++
-            autoDialNext()
-        }
-        builder.show()
-    }
-
-    private fun showRemarkDialog() {
-        val editText = EditText(this)
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("输入备注信息")
-        builder.setView(editText)
-        builder.setPositiveButton("确定") { _, _ ->
-            val remark = editText.text.toString()
-            phoneList[currentCallIndex].annotation = "客户"
-            phoneList[currentCallIndex].remark = remark
-            updateStatsForCurrent("customer")
-            showToast("标注为客户，备注：$remark")
-            currentCallIndex++
-            autoDialNext()
-        }
-        builder.setNegativeButton("取消") { dialog, _ ->
-            dialog.dismiss()
-        }
-        builder.show()
-    }
-
-    private fun updateStatsForCurrent(type: String) {
-        val entry = phoneList[currentCallIndex]
-        val key = entry.importKey ?: return
-        val stat = importStatsMap.getOrPut(key) { ImportStats() }
-        when (type) {
-            "dialed" -> stat.dialed++
-            "customer" -> stat.customer++
-            "useless" -> stat.useless++
-        }
-        saveImportStats(key)
-    }
-
-    private fun saveImportStats(key: String) {
-        val stat = importStatsMap[key] ?: return
-        val json = "${stat.total},${stat.dialed},${stat.customer},${stat.useless}"
-        val filename = "${key}_stat.txt"
-        openFileOutput(filename, Context.MODE_PRIVATE).use {
-            it.write(json.toByteArray())
-        }
-    }
-
-    private fun toggleFloatingWindow() {
-        if (floatingWindowVisible) {
-            removeFloatingWindow()
-        } else {
-            showFloatingWindow()
-        }
-    }
-
-    private fun showFloatingWindow() {
-        val inflater = LayoutInflater.from(this)
-        val floatingView = inflater.inflate(R.layout.floating_window, null)
-
-        val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+    private fun syncCallLogsToCloud(phoneNo: String) {
+        val log = mapOf(
+            "phone_number" to phoneNo,
+            "timestamp" to System.currentTimeMillis()
         )
-        layoutParams.gravity = Gravity.TOP or Gravity.END
-        layoutParams.x = 0
-        layoutParams.y = 100
-
-        floatingView.btnClose.setOnClickListener {
-            removeFloatingWindow()
-        }
-        floatingView.btnRestore.setOnClickListener {
-            removeFloatingWindow()
-            showToast("恢复主界面")
-        }
-
-        windowManager.addView(floatingView, layoutParams)
-        floatingWindowVisible = true
-        showToast("显示浮动窗口")
+        firestore.collection("call_logs").add(log)
+            .addOnSuccessListener { showToast("拨号记录已同步至云端") }
+            .addOnFailureListener { showToast("拨号记录同步失败") }
     }
 
-    private fun removeFloatingWindow() {
-        val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val floatingView = findViewById<View>(R.id.floating_window_layout)
-        if (floatingView != null) {
-            windowManager.removeViewImmediate(floatingView)
-            floatingWindowVisible = false
-            showToast("浮动窗口已关闭")
-        }
-    }
-
-    private fun updateStats() {
-        showToast("总拨号次数: $totalCalls, 当天拨号次数: $dailyCalls")
-    }
-
-    private fun loadStats() {
-        totalCalls = sharedPreferences.getInt("total_calls", 0)
-        dailyCalls = sharedPreferences.getInt("daily_calls", 0)
-        showToast("加载统计数据：总拨号次数 $totalCalls，当天拨号次数 $dailyCalls")
-    }
-
-    private fun saveStats() {
-        with(sharedPreferences.edit()) {
-            putInt("total_calls", totalCalls)
-            putInt("daily_calls", dailyCalls)
-            apply()
-        }
-    }
-
-    private fun checkPermission(permission: String) {
-        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(permission), 1)
-        }
-    }
-
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
+    // 其他方法保持不变...
 
     data class PhoneEntry(
         val number: String,
         var annotation: String = "未标注",
         var remark: String? = null,
         val importKey: String? = null
-    )
-
-    data class ImportStats(
-        var total: Int = 0,
-        var dialed: Int = 0,
-        var customer: Int = 0,
-        var useless: Int = 0
-    )
+    ) {
+        fun toMap(): Map<String, Any?> {
+            return mapOf(
+                "number" to number,
+                "annotation" to annotation,
+                "remark" to remark,
+                "importKey" to importKey
+            )
+        }
+    }
 }

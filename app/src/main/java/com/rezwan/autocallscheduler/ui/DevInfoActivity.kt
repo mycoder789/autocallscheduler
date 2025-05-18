@@ -1,12 +1,14 @@
 package com.rezwan.autocallscheduler.ui
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -35,6 +37,9 @@ class DevInfoActivity : AppCompatActivity() {
         initToolbar()
         initListener()
         tvDevLink.setHtml("<a href=\"https://github.com/mycoder789\">https://github.com/mycoder789</a>")
+
+        // 显示版本号和联系方式
+        displayAppInfo()
 
         // 按钮：导入电话号码
         findViewById<Button>(R.id.btnImportNumbers).setOnClickListener {
@@ -65,7 +70,6 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 初始化工具栏
     private fun initToolbar() {
         supportActionBar?.apply {
             title = "关于开发者"
@@ -74,7 +78,6 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 按钮监听器
     private fun initListener() {
         btnDev.setOnClickListener {
             BrowserUtils.openBrowser(this, "https://github.com/mycoder789")
@@ -85,7 +88,23 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 文件选择器，用于导入电话号码文件
+    private fun displayAppInfo() {
+        // 获取应用版本号
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            "未知版本"
+        }
+
+        // 设置开发者联系方式
+        val contactInfo = "电话: 18027303007\n微信号: HKpetro"
+
+        // 显示版本号
+        findViewById<TextView>(R.id.tvAppVersion).text = "版本号: $version"
+        // 显示联系方式
+        findViewById<TextView>(R.id.tvContactInfo).text = contactInfo
+    }
+
     private val filePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
@@ -98,7 +117,6 @@ class DevInfoActivity : AppCompatActivity() {
         filePickerLauncher.launch("*/*") // 允许选择任意文件类型
     }
 
-    // 处理导入的文件，根据文件格式解析电话号码
     private fun processFile(filePath: String) {
         when {
             filePath.endsWith(".txt", ignoreCase = true) -> loadPhoneNumbersFromTxt(filePath)
@@ -108,7 +126,6 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 从 TXT 文件加载电话号码
     private fun loadPhoneNumbersFromTxt(filePath: String) {
         try {
             File(filePath).forEachLine { line ->
@@ -121,7 +138,6 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 从 CSV 文件加载电话号码
     private fun loadPhoneNumbersFromCSV(filePath: String) {
         try {
             val reader = BufferedReader(FileReader(filePath))
@@ -137,7 +153,6 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 从 Excel 文件加载电话号码
     private fun loadPhoneNumbersFromExcel(filePath: String) {
         try {
             val inputStream = FileInputStream(File(filePath))
@@ -156,7 +171,6 @@ class DevInfoActivity : AppCompatActivity() {
         }
     }
 
-    // 自动拨号功能
     private fun startAutoDialing() {
         currentIndex = 0 // 重置索引
         dialNextNumber()
@@ -187,7 +201,6 @@ class DevInfoActivity : AppCompatActivity() {
             requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 1)
         }
 
-        // 延迟拨打下一个号码
         handler.postDelayed({
             currentIndex++
             dialNextNumber()

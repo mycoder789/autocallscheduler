@@ -3,20 +3,23 @@ package com.rezwan.autocallscheduler.ui
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.WindowManager
+import android.os.Handler
+import android.os.Looper
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rezwan.autocallscheduler.R
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.floating_window.view.*
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class CallerActivity : BaseActivity() {
 
@@ -26,17 +29,20 @@ class CallerActivity : BaseActivity() {
     private var totalCalls = 0 // 总拨号次数
     private var dailyCalls = 0 // 当天拨号次数
     private var floatingWindowVisible = false // 浮动窗口是否显示
+    private lateinit var sharedPreferences: SharedPreferences
+    private val handler = Handler(Looper.getMainLooper()) // 用于自动连续拨号
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        sharedPreferences = getSharedPreferences("CallStats", Context.MODE_PRIVATE)
         initListeners()
         loadStats() // 加载统计数据
     }
 
     private fun initListeners() {
         btnStartCall.setOnClickListener { startCall() }
-        btnImportFile.setOnClickListener { handleFileImport() }
+        btnImportFile.setOnClickListener { selectFileForImport() }
         btnShowFloating.setOnClickListener { toggleFloatingWindow() }
     }
 
@@ -54,6 +60,7 @@ class CallerActivity : BaseActivity() {
         // 更新统计数据
         totalCalls++
         dailyCalls++
+        saveStats()
         updateStats()
 
         // 模拟拨号完成后调用标注功能
@@ -66,27 +73,18 @@ class CallerActivity : BaseActivity() {
     }
 
     private fun showAnnotationDialog() {
-        val options = arrayOf("无标注", "标注无用", "标注客户")
         val builder = AlertDialog.Builder(this)
         builder.setTitle("请选择标注类型")
-        builder.setItems(options) { _, which ->
-            when (which) {
-                0 -> {
-                    // 无标注
-                    phoneList[currentCallIndex].annotation = "无标注"
-                    showToast("标注为无标注")
-                }
-                1 -> {
-                    // 标注无用
-                    phoneList[currentCallIndex].annotation = "无用"
-                    showToast("标注为无用")
-                }
-                2 -> {
-                    // 标注客户
-                    showRemarkDialog()
-                }
-            }
+        builder.setPositiveButton("客户") { _, _ ->
+            // 显示备注输入框
+            showRemarkDialog()
+        }
+        builder.setNegativeButton("无用") { _, _ ->
+            // 标注为无用
+            phoneList[currentCallIndex].annotation = "无用"
+            showToast("标注为无用")
             currentCallIndex++ // 跳到下一个号码
+            autoDialNext() // 自动拨打下一个号码
         }
         builder.show()
     }
@@ -102,6 +100,7 @@ class CallerActivity : BaseActivity() {
             phoneList[currentCallIndex].remark = remark
             showToast("标注为客户，备注：$remark")
             currentCallIndex++ // 跳到下一个号码
+            autoDialNext() // 自动拨打下一个号码
         }
         builder.setNegativeButton("取消") { dialog, _ ->
             dialog.dismiss()
@@ -109,9 +108,35 @@ class CallerActivity : BaseActivity() {
         builder.show()
     }
 
-    private fun handleFileImport() {
-        // 文件导入逻辑（TXT、CSV、Excel）
-        showToast("导入文件功能")
+    private fun selectFileForImport() {
+        val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let { handleFileImport(it) }
+        }
+        importFileLauncher.launch("text/*") // 选择 TXT 或 CSV 文件
+    }
+
+    private fun handleFileImport(uri: Uri) {
+        try {
+            val inputStream = contentResolver.openInputStream(uri)
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            phoneList.clear()
+
+            reader.useLines { lines ->
+                lines.forEach { line ->
+                    val parts = line.split(",") // 假设 CSV 格式为 "号码,备注"
+                    val phoneEntry = PhoneEntry(
+                        number = parts[0],
+                        annotation = "未标注",
+                        remark = if (parts.size > 1) parts[1] else null
+                    )
+                    phoneList.add(phoneEntry)
+                }
+            }
+
+            showToast("文件导入成功，共${phoneList.size}个号码")
+        } catch (e: Exception) {
+            showToast("文件导入失败：${e.message}")
+        }
     }
 
     private fun toggleFloatingWindow() {
@@ -153,11 +178,13 @@ class CallerActivity : BaseActivity() {
 
     private fun removeFloatingWindow() {
         val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val floatingView = findViewById<WindowManager.LayoutParams>(R.id.floating_window_layout)
-        if (floatingView != null) {
+        try {
+            val floatingView = findViewById<View>(R.id.floating_window_layout) // 修正类型为 View
             windowManager.removeViewImmediate(floatingView)
             floatingWindowVisible = false
             showToast("浮动窗口已关闭")
+        } catch (e: Exception) {
+            showToast("浮动窗口关闭失败：${e.message}")
         }
     }
 
@@ -167,10 +194,23 @@ class CallerActivity : BaseActivity() {
     }
 
     private fun loadStats() {
-        // 模拟加载统计数据
-        totalCalls = 0 // 假设从持久化存储中加载的值
-        dailyCalls = 0 // 假设从持久化存储中加载的值
+        totalCalls = sharedPreferences.getInt("total_calls", 0)
+        dailyCalls = sharedPreferences.getInt("daily_calls", 0)
         showToast("加载统计数据：总拨号次数 $totalCalls，当天拨号次数 $dailyCalls")
+    }
+
+    private fun saveStats() {
+        with(sharedPreferences.edit()) {
+            putInt("total_calls", totalCalls)
+            putInt("daily_calls", dailyCalls)
+            apply()
+        }
+    }
+
+    private fun autoDialNext() {
+        if (currentCallIndex < phoneList.size) {
+            handler.postDelayed({ startCall() }, 2000) // 延迟 2 秒拨打下一个号码
+        }
     }
 
     private fun checkPermission(permission: String) {

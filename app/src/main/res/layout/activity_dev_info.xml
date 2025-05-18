@@ -7,117 +7,38 @@
     android:fitsSystemWindows="true"
     tools:context=".ui.DevInfoActivity">
 
-    <!-- 标注机制 UI -->
-    <LinearLayout
-        android:id="@+id/marking_layout"
+    <!-- 软件说明区域 -->
+    <ScrollView
+        android:id="@+id/scrollViewSoftwareDescription"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:layout_alignParentTop="true">
-
-        <TextView
-            android:id="@+id/tvMarkingTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="通话标注"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+        android:layout_height="match_parent"
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_horizontal">
+            android:orientation="vertical">
 
-            <!-- 标记为无用 -->
-            <Button
-                android:id="@+id/btnMarkUseless"
+            <!-- 软件说明标题 -->
+            <TextView
+                android:id="@+id/tvSoftwareDescriptionTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="无用"
-                android:layout_marginEnd="8dp" />
+                android:text="软件说明"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp"
+                android:textColor="@android:color/black" />
 
-            <!-- 标记为客户 -->
-            <Button
-                android:id="@+id/btnMarkCustomer"
-                android:layout_width="wrap_content"
+            <!-- 软件说明内容 -->
+            <TextView
+                android:id="@+id/tvSoftwareDescription"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="客户"
-                android:layout_marginEnd="8dp" />
+                android:text="@string/app_description"
+                android:textSize="14sp"
+                android:textColor="@android:color/black" />
 
-            <!-- 删除号码 -->
-            <Button
-                android:id="@+id/btnDeleteNumber"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="删除" />
         </LinearLayout>
-
-        <!-- 备注输入框 -->
-        <EditText
-            android:id="@+id/etCustomerNote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="添加备注信息"
-            android:layout_marginTop="8dp"
-            android:visibility="gone" />
-    </LinearLayout>
-
-    <!-- 统计功能 UI -->
-    <LinearLayout
-        android:id="@+id/statistics_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:layout_below="@id/marking_layout">
-
-        <TextView
-            android:id="@+id/tvStatisticsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="统计信息"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
-
-        <!-- 数据统计项 -->
-        <TextView
-            android:id="@+id/tvTotalImported"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="导入总数：0" />
-
-        <TextView
-            android:id="@+id/tvTotalCalls"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="累计拨打数：0" />
-
-        <TextView
-            android:id="@+id/tvTodayCalls"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="今日拨打数：0" />
-
-        <TextView
-            android:id="@+id/tvTotalConnected"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="累计接通数：0" />
-
-        <TextView
-            android:id="@+id/tvTodayConnected"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="今日接通数：0" />
-
-        <TextView
-            android:id="@+id/tvTotalCustomers"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="客户总数：0" />
-    </LinearLayout>
+    </ScrollView>
 </RelativeLayout>

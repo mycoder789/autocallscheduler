@@ -16,6 +16,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.EditText
+import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
@@ -45,13 +46,17 @@ class CallerActivity : BaseActivity() {
     private var currentImportKey: String? = null
     private val importStatsMap = mutableMapOf<String, ImportStats>()
 
-    // Firebase Firestore instance
+    // 默认拨号间隔时间（以毫秒为单位）
+    private var dialInterval: Long = 5000
+
+    // Firebase Firestore 实例
     private val firestore = FirebaseFirestore.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         sharedPreferences = getSharedPreferences("CallStats", Context.MODE_PRIVATE)
+        dialInterval = sharedPreferences.getLong("dial_interval", 5000) // 加载拨号间隔设置
         initListeners()
         loadStats()
     }
@@ -74,6 +79,8 @@ class CallerActivity : BaseActivity() {
         }
 
         btnSkipDelay.setOnClickListener { skipDelayToNextCall() }
+
+        btnSetInterval.setOnClickListener { showIntervalDialog() }
     }
 
     private val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -95,7 +102,7 @@ class CallerActivity : BaseActivity() {
 
             val fileName = uri.lastPathSegment ?: "unknown"
             if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
-                // Parse Excel file
+                // 解析 Excel 文件
                 val workbook = WorkbookFactory.create(inputStream)
                 val sheet = workbook.getSheetAt(0)
                 for (row in sheet) {
@@ -112,7 +119,7 @@ class CallerActivity : BaseActivity() {
                 }
                 workbook.close()
             } else {
-                // Process as TXT/CSV
+                // 处理 TXT/CSV 文件
                 val reader = BufferedReader(InputStreamReader(inputStream))
                 reader.useLines { lines ->
                     lines.forEach { line ->
@@ -128,7 +135,7 @@ class CallerActivity : BaseActivity() {
                 }
             }
 
-            // Save imported data
+            // 保存导入数据
             val filename = "$importKey.txt"
             openFileOutput(filename, Context.MODE_PRIVATE).use { output ->
                 importedLines.forEach { line ->
@@ -190,6 +197,33 @@ class CallerActivity : BaseActivity() {
         onCallCompleted()
     }
 
+    private fun autoDialNext() {
+        if (currentCallIndex < phoneList.size) {
+            if (isPaused) {
+                showToast("拨号已暂停")
+                return
+            }
+            handler.postDelayed({ startCall() }, dialInterval) // 使用自定义拨号间隔
+        }
+    }
+
+    private fun showIntervalDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_set_interval, null)
+        val seekBar = dialogView.findViewById<SeekBar>(R.id.seekBarInterval)
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("设置拨号间隔")
+        builder.setView(dialogView)
+        builder.setPositiveButton("确定") { _, _ ->
+            dialInterval = (seekBar.progress * 1000).toLong()
+            sharedPreferences.edit().putLong("dial_interval", dialInterval).apply()
+            showToast("拨号间隔已设置为 ${dialInterval / 1000} 秒")
+        }
+        builder.setNegativeButton("取消") { dialog, _ ->
+            dialog.dismiss()
+        }
+        builder.show()
+    }
+
     private fun syncContactsToCloud() {
         val contacts = phoneList.map { it.toMap() }
         firestore.collection("contacts").add(contacts)
@@ -207,7 +241,7 @@ class CallerActivity : BaseActivity() {
             .addOnFailureListener { showToast("拨号记录同步失败") }
     }
 
-    // 其他方法保持不变...
+    // 其他代码保持不变...
 
     data class PhoneEntry(
         val number: String,

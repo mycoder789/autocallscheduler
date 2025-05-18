@@ -1,129 +1,136 @@
-/*
- *       Copyright (c) 2020. RRsaikat
- *
- *       Licensed under the Apache License, Version 2.0 (the "License");
- *       you may not use this file except in compliance with the License.
- *       You may obtain a copy of the License at
- *
- *             http://www.apache.org/licenses/LICENSE-2.0
- *
- *       Unless required by applicable law or agreed to in writing, software
- *       distributed under the License is distributed on an "AS IS" BASIS,
- *       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *       See the License for the specific language governing permissions and
- *       limitations under the License.
- */
-
 package com.rezwan.autocallscheduler.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.view.Menu
+import android.widget.EditText
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rezwan.autocallscheduler.R
-import com.rezwan.autocallscheduler.constants.const
-import com.rezwan.autocallscheduler.viewmodel.AppViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 
 class CallerActivity : BaseActivity() {
 
     private val CALL_PHONE = Manifest.permission.CALL_PHONE
+    private val phoneList = mutableListOf<PhoneEntry>() // 电话号码列表，包含标注信息
+    private var currentCallIndex = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         initListeners()
-        setupObservers()
+        loadStats() // 加载统计数据
     }
 
     private fun initListeners() {
-        // 保留调度页面跳转功能
-        btnConfirm.setOnClickListener {
-            startActivity(Intent(this, ScheduleActivity::class.java))
-        }
-    }
-
-    private fun setupObservers() {
-        viewModel.permissionObservable.observe(this) {
-            when (it) {
-                is AppViewModel.AppPermissions.NO_PERMISSION_REQUIRED,
-                is AppViewModel.AppPermissions.GRANTED -> {
-                    directPhoneCall()
-                }
-                is AppViewModel.AppPermissions.NOT_GRANTED -> {
-                    showToast("Permission is required")
-                }
-                is AppViewModel.AppPermissions.SHOW_RATIONALE -> {
-                    // Handle rationale display if needed
-                }
-            }
-        }
+        btnStartCall.setOnClickListener { startCall() }
+        btnImportFile.setOnClickListener { handleFileImport() }
+        btnShowFloating.setOnClickListener { showFloatingWindow() }
     }
 
     @SuppressLint("MissingPermission")
-    private fun directPhoneCall() {
-        val phoneNo = getPhoneNoFromFields()
+    private fun startCall() {
+        if (currentCallIndex >= phoneList.size) {
+            showToast("所有号码已拨打完成！")
+            return
+        }
+
+        val phoneNo = phoneList[currentCallIndex].number
+        showToast("正在拨打：$phoneNo")
         startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phoneNo")))
+        updateStats() // 更新统计数据
+
+        // 模拟拨号完成后调用标注功能
+        onCallCompleted()
     }
 
-    // 从号码导入逻辑中获取电话号码
-    private fun getPhoneNoFromFields() = "PREDEFINED_PHONE_NUMBER" // 替换为实际逻辑
+    private fun onCallCompleted() {
+        // 显示标注对话框
+        showAnnotationDialog()
+    }
+
+    private fun showAnnotationDialog() {
+        val options = arrayOf("无标注", "标注无用", "标注客户")
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("请选择标注类型")
+        builder.setItems(options) { _, which ->
+            when (which) {
+                0 -> {
+                    // 无标注
+                    phoneList[currentCallIndex].annotation = "无标注"
+                    showToast("标注为无标注")
+                }
+                1 -> {
+                    // 标注无用
+                    phoneList[currentCallIndex].annotation = "无用"
+                    showToast("标注为无用")
+                }
+                2 -> {
+                    // 标注客户
+                    showRemarkDialog()
+                }
+            }
+            currentCallIndex++ // 跳到下一个号码
+        }
+        builder.show()
+    }
+
+    private fun showRemarkDialog() {
+        val editText = EditText(this)
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("输入备注信息")
+        builder.setView(editText)
+        builder.setPositiveButton("确定") { _, _ ->
+            val remark = editText.text.toString()
+            phoneList[currentCallIndex].annotation = "客户"
+            phoneList[currentCallIndex].remark = remark
+            showToast("标注为客户，备注：$remark")
+            currentCallIndex++ // 跳到下一个号码
+        }
+        builder.setNegativeButton("取消") { dialog, _ ->
+            dialog.dismiss()
+        }
+        builder.show()
+    }
+
+    private fun handleFileImport() {
+        // 文件导入逻辑（TXT、CSV、Excel）
+        showToast("导入文件功能")
+    }
+
+    private fun showFloatingWindow() {
+        // 浮动窗口功能（保持界面在最前）
+        showToast("显示浮动窗口功能")
+    }
+
+    private fun updateStats() {
+        // 更新统计数据逻辑
+        showToast("更新统计数据逻辑")
+    }
+
+    private fun loadStats() {
+        // 加载统计数据
+        showToast("加载统计数据")
+    }
 
     private fun checkPermission(permission: String) {
-        if (hasPermission(permission)) {
-            viewModel.permissionObservable.value = AppViewModel.AppPermissions.GRANTED()
-        } else {
-            requestPermission(permission)
+        if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(permission), 1)
         }
-    }
-
-    private fun requestPermission(permission: String) {
-        ActivityCompat.requestPermissions(
-            this, arrayOf(permission),
-            const.ESSENTIAL_PERMISSIONS_REQUEST_CODE
-        )
-    }
-
-    private fun hasPermission(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(
-            this,
-            permission
-        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun showToast(message: String) {
-        Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.call_menu, menu)
-        return true
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        checkPermissionsRequestResult(requestCode, grantResults)
-    }
-
-    private fun checkPermissionsRequestResult(
-        requestCode: Int,
-        grantResults: IntArray
-    ): AppViewModel.AppPermissions {
-        return when {
-            requestCode != const.ESSENTIAL_PERMISSIONS_REQUEST_CODE -> AppViewModel.AppPermissions.NOT_GRANTED()
-            grantResults.none { it == PackageManager.PERMISSION_DENIED } -> AppViewModel.AppPermissions.GRANTED()
-            ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CALL_PHONE) -> AppViewModel.AppPermissions.SHOW_RATIONALE()
-            else -> AppViewModel.AppPermissions.NOT_GRANTED()
-        }
-    }
+    data class PhoneEntry(
+        val number: String,
+        var annotation: String = "未标注",
+        var remark: String? = null
+    )
 }

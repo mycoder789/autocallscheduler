@@ -11,12 +11,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.View
-import android.view.WindowManager
 import android.widget.EditText
-import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
@@ -33,56 +29,60 @@ import java.util.*
 
 class CallerActivity : BaseActivity() {
 
-    private val CALL_PHONE = Manifest.permission.CALL_PHONE
+    // Constants
+    private val CALL_PHONE_PERMISSION = Manifest.permission.CALL_PHONE
+    private val DEFAULT_DIAL_INTERVAL_MS: Long = 5000
+
+    // Variables
     private val phoneList = mutableListOf<PhoneEntry>()
     private var currentCallIndex = 0
     private var totalCalls = 0
     private var dailyCalls = 0
-    private var floatingWindowVisible = false
     private lateinit var sharedPreferences: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
     private var isPaused = false
+    private var dialInterval: Long = DEFAULT_DIAL_INTERVAL_MS
 
-    private var currentImportKey: String? = null
-    private val importStatsMap = mutableMapOf<String, ImportStats>()
-
-    // 默认拨号间隔时间（以毫秒为单位）
-    private var dialInterval: Long = 5000
-
-    // Firebase Firestore 实例
+    // Firebase Firestore instance
     private val firestore = FirebaseFirestore.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Initialize shared preferences and load settings
         sharedPreferences = getSharedPreferences("CallStats", Context.MODE_PRIVATE)
-        dialInterval = sharedPreferences.getLong("dial_interval", 5000) // 加载拨号间隔设置
+        dialInterval = sharedPreferences.getLong("dial_interval", DEFAULT_DIAL_INTERVAL_MS)
+
         initListeners()
         loadStats()
     }
 
+    /**
+     * Initializes button listeners for the activity.
+     */
     private fun initListeners() {
         btnStartCall.setOnClickListener { startCall() }
         btnImportFile.setOnClickListener { selectFileForImport() }
         btnShowFloating.setOnClickListener { toggleFloatingWindow() }
-
-        btnPauseResume.setOnClickListener {
-            isPaused = !isPaused
-            if (isPaused) {
-                btnPauseResume.text = "继续拨号"
-                showToast("拨号已暂停")
-            } else {
-                btnPauseResume.text = "暂停拨号"
-                showToast("拨号已恢复")
-                autoDialNext()
-            }
-        }
-
+        btnPauseResume.setOnClickListener { togglePauseResume() }
         btnSkipDelay.setOnClickListener { skipDelayToNextCall() }
-
-        btnSetInterval.setOnClickListener { showIntervalDialog() }
+        btnSetInterval.setOnClickListener { showDialIntervalInputDialog() }
     }
 
+    /**
+     * Toggles the pause and resume state for auto-dialing.
+     */
+    private fun togglePauseResume() {
+        isPaused = !isPaused
+        btnPauseResume.text = if (isPaused) "继续拨号" else "暂停拨号"
+        showToast(if (isPaused) "拨号已暂停" else "拨号已恢复")
+        if (!isPaused) autoDialNext()
+    }
+
+    /**
+     * Handles file import logic for phone numbers.
+     */
     private val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { handleFileImport(it) }
     }
@@ -91,68 +91,79 @@ class CallerActivity : BaseActivity() {
         importFileLauncher.launch("*/*")
     }
 
+    /**
+     * Processes the imported file and extracts phone numbers.
+     */
     private fun handleFileImport(uri: Uri) {
         try {
             val inputStream = contentResolver.openInputStream(uri)
             val importedLines = mutableListOf<String>()
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val timestamp = getCurrentTimestamp()
             val importKey = "import_$timestamp"
-            currentImportKey = importKey
             var importCount = 0
 
             val fileName = uri.lastPathSegment ?: "unknown"
             if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
-                // 解析 Excel 文件
-                val workbook = WorkbookFactory.create(inputStream)
-                val sheet = workbook.getSheetAt(0)
-                for (row in sheet) {
-                    val numberCell = row.getCell(0)
-                    val remarkCell = if (row.physicalNumberOfCells > 1) row.getCell(1) else null
-                    val number = numberCell?.toString()?.trim()
-                    val remark = remarkCell?.toString()?.trim()
-
-                    if (!number.isNullOrBlank()) {
-                        phoneList.add(PhoneEntry(number = number, remark = remark, importKey = importKey))
-                        importedLines.add("$number,${remark ?: ""}")
-                        importCount++
-                    }
-                }
-                workbook.close()
+                importCount = processExcelFile(inputStream, importKey, importedLines)
             } else {
-                // 处理 TXT/CSV 文件
-                val reader = BufferedReader(InputStreamReader(inputStream))
-                reader.useLines { lines ->
-                    lines.forEach { line ->
-                        val parts = line.trim().split(",")
-                        if (parts.isNotEmpty() && parts[0].isNotBlank()) {
-                            val number = parts[0].replace("\\s".toRegex(), "")
-                            val remark = if (parts.size > 1) parts[1] else null
-                            phoneList.add(PhoneEntry(number = number, remark = remark, importKey = importKey))
-                            importedLines.add(line.trim())
-                            importCount++
-                        }
-                    }
-                }
+                importCount = processTextFile(inputStream, importKey, importedLines)
             }
 
-            // 保存导入数据
-            val filename = "$importKey.txt"
-            openFileOutput(filename, Context.MODE_PRIVATE).use { output ->
-                importedLines.forEach { line ->
-                    output.write((line + "\n").toByteArray())
-                }
-            }
+            saveImportedData(importKey, importedLines)
+            showToast("导入成功，共 $importCount 个号码")
 
-            importStatsMap[importKey] = ImportStats(total = importCount)
-            saveImportStats(importKey)
-
-            // 同步导入数据到云端
+            // Sync imported data to cloud
             syncContactsToCloud()
-
-            showToast("导入成功，共 $importCount 个号码，保存为 $filename")
 
         } catch (e: Exception) {
             showToast("导入失败：${e.message}")
+        }
+    }
+
+    private fun processExcelFile(inputStream: java.io.InputStream?, importKey: String, importedLines: MutableList<String>): Int {
+        var count = 0
+        val workbook = WorkbookFactory.create(inputStream)
+        val sheet = workbook.getSheetAt(0)
+        for (row in sheet) {
+            val numberCell = row.getCell(0)
+            val remarkCell = if (row.physicalNumberOfCells > 1) row.getCell(1) else null
+            val number = numberCell?.toString()?.trim()
+            val remark = remarkCell?.toString()?.trim()
+
+            if (!number.isNullOrBlank()) {
+                phoneList.add(PhoneEntry(number = number, remark = remark, importKey = importKey))
+                importedLines.add("$number,${remark ?: ""}")
+                count++
+            }
+        }
+        workbook.close()
+        return count
+    }
+
+    private fun processTextFile(inputStream: java.io.InputStream?, importKey: String, importedLines: MutableList<String>): Int {
+        var count = 0
+        val reader = BufferedReader(InputStreamReader(inputStream))
+        reader.useLines { lines ->
+            lines.forEach { line ->
+                val parts = line.trim().split(",")
+                if (parts.isNotEmpty() && parts[0].isNotBlank()) {
+                    val number = parts[0].replace("\\s".toRegex(), "")
+                    val remark = if (parts.size > 1) parts[1] else null
+                    phoneList.add(PhoneEntry(number = number, remark = remark, importKey = importKey))
+                    importedLines.add(line.trim())
+                    count++
+                }
+            }
+        }
+        return count
+    }
+
+    private fun saveImportedData(importKey: String, importedLines: List<String>) {
+        val filename = "$importKey.txt"
+        openFileOutput(filename, Context.MODE_PRIVATE).use { output ->
+            importedLines.forEach { line ->
+                output.write((line + "\n").toByteArray())
+            }
         }
     }
 
@@ -164,20 +175,7 @@ class CallerActivity : BaseActivity() {
         }
 
         if ((currentCallIndex + 1) % 30 == 0) {
-            isPaused = true
-            btnPauseResume.text = "继续拨号"
-            AlertDialog.Builder(this)
-                .setTitle("拨号提醒")
-                .setMessage("您已拨打 ${currentCallIndex + 1} 个号码，是否继续？")
-                .setPositiveButton("继续") { _, _ ->
-                    isPaused = false
-                    btnPauseResume.text = "暂停拨号"
-                    autoDialNext()
-                }
-                .setNegativeButton("暂停") { _, _ ->
-                    showToast("拨号已暂停")
-                }
-                .show()
+            showPauseDialog()
             return
         }
 
@@ -191,36 +189,53 @@ class CallerActivity : BaseActivity() {
         saveStats()
         updateStats()
 
-        // 同步拨号记录到云端
+        // Sync call logs to cloud
         syncCallLogsToCloud(phoneNo)
 
         onCallCompleted()
     }
 
-    private fun autoDialNext() {
-        if (currentCallIndex < phoneList.size) {
-            if (isPaused) {
-                showToast("拨号已暂停")
-                return
+    private fun showPauseDialog() {
+        isPaused = true
+        btnPauseResume.text = "继续拨号"
+        AlertDialog.Builder(this)
+            .setTitle("拨号提醒")
+            .setMessage("您已拨打 ${currentCallIndex + 1} 个号码，是否继续？")
+            .setPositiveButton("继续") { _, _ ->
+                isPaused = false
+                btnPauseResume.text = "暂停拨号"
+                autoDialNext()
             }
-            handler.postDelayed({ startCall() }, dialInterval) // 使用自定义拨号间隔
+            .setNegativeButton("暂停") { _, _ ->
+                showToast("拨号已暂停")
+            }
+            .show()
+    }
+
+    private fun autoDialNext() {
+        if (currentCallIndex < phoneList.size && !isPaused) {
+            handler.postDelayed({ startCall() }, dialInterval)
         }
     }
 
-    private fun showIntervalDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_set_interval, null)
-        val seekBar = dialogView.findViewById<SeekBar>(R.id.seekBarInterval)
+    private fun showDialIntervalInputDialog() {
+        val editText = EditText(this)
+        editText.hint = "输入拨号间隔时间（秒）"
         val builder = AlertDialog.Builder(this)
         builder.setTitle("设置拨号间隔")
-        builder.setView(dialogView)
+        builder.setView(editText)
         builder.setPositiveButton("确定") { _, _ ->
-            dialInterval = (seekBar.progress * 1000).toLong()
-            sharedPreferences.edit().putLong("dial_interval", dialInterval).apply()
-            showToast("拨号间隔已设置为 ${dialInterval / 1000} 秒")
+            val input = editText.text.toString()
+            val interval = input.toLongOrNull()
+            if (interval != null && interval > 0) {
+                dialInterval = interval * 1000
+                sharedPreferences.edit().putLong("dial_interval", dialInterval).apply()
+                showToast("拨号间隔已设置为 $interval 秒")
+            } else {
+                showToast("请输入有效的数字")
+            }
         }
-        builder.setNegativeButton("取消") { dialog, _ ->
-            dialog.dismiss()
-        }
+        builder.setNegativeButton("取消") { dialog, _ -> dialog.dismiss() }
         builder.show()
     }
 
@@ -232,17 +247,31 @@ class CallerActivity : BaseActivity() {
     }
 
     private fun syncCallLogsToCloud(phoneNo: String) {
-        val log = mapOf(
-            "phone_number" to phoneNo,
-            "timestamp" to System.currentTimeMillis()
-        )
+        val log = mapOf("phone_number" to phoneNo, "timestamp" to System.currentTimeMillis())
         firestore.collection("call_logs").add(log)
             .addOnSuccessListener { showToast("拨号记录已同步至云端") }
             .addOnFailureListener { showToast("拨号记录同步失败") }
     }
 
-    // 其他代码保持不变...
+    private fun getCurrentTimestamp(): String {
+        return SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    }
 
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun updateStatsForCurrent(type: String) {
+        val entry = phoneList[currentCallIndex]
+        val key = entry.importKey ?: return
+        val stat = importStatsMap.getOrPut(key) { ImportStats() }
+        when (type) {
+            "dialed" -> stat.dialed++
+        }
+        saveImportStats(key)
+    }
+
+    // Data Classes
     data class PhoneEntry(
         val number: String,
         var annotation: String = "未标注",
@@ -258,4 +287,9 @@ class CallerActivity : BaseActivity() {
             )
         }
     }
+
+    data class ImportStats(
+        var total: Int = 0,
+        var dialed: Int = 0
+    )
 }

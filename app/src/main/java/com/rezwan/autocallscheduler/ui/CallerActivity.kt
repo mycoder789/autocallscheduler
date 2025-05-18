@@ -68,6 +68,9 @@ class CallerActivity : BaseActivity() {
                 autoDialNext()
             }
         }
+
+        // 添加跳过延迟的按钮事件监听
+        btnSkipDelay.setOnClickListener { skipDelayToNextCall() }
     }
 
     private val importFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -181,6 +184,24 @@ class CallerActivity : BaseActivity() {
         showAnnotationDialog()
     }
 
+    private fun autoDialNext() {
+        if (currentCallIndex < phoneList.size) {
+            if (isPaused) {
+                showToast("拨号已暂停")
+                return
+            }
+            handler.postDelayed({ startCall() }, 5000)
+        }
+    }
+
+    // 新增方法：直接跳过延迟拨打下一个号码
+    private fun skipDelayToNextCall() {
+        if (currentCallIndex < phoneList.size && !isPaused) {
+            handler.removeCallbacksAndMessages(null) // 移除所有延迟任务
+            startCall()
+        }
+    }
+
     private fun showAnnotationDialog() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("请选择标注类型")
@@ -235,16 +256,6 @@ class CallerActivity : BaseActivity() {
         val filename = "${key}_stat.txt"
         openFileOutput(filename, Context.MODE_PRIVATE).use {
             it.write(json.toByteArray())
-        }
-    }
-
-    private fun autoDialNext() {
-        if (currentCallIndex < phoneList.size) {
-            if (isPaused) {
-                showToast("拨号已暂停")
-                return
-            }
-            handler.postDelayed({ startCall() }, 5000)
         }
     }
 

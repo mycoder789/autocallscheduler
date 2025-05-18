@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">自动拨号计划</string>
+    <string name="app_name">青蛙自动拨号软件</string>
     <string name="app_details">
         一个可以自动拨打电话号码的安卓应用。基本上，这是谷歌#30daysOfKotlin训练营的一个测试基础应用。
         在这个项目中，代码部分使用了许多Kotlin的特性（如：when表达式、数据类和相等性、可见性、密封类、懒加载、内联、顶级函数和参数、扩展函数、简单的跨度、作用域等）。

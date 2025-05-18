@@ -24,23 +24,16 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.Menu
-import android.view.View
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
 import com.rezwan.autocallscheduler.R
-import com.rezwan.autocallscheduler.callbacks.TimerTaskListener
 import com.rezwan.autocallscheduler.constants.const
-import com.rezwan.autocallscheduler.ext.error
-import com.rezwan.autocallscheduler.ext.info
-import com.rezwan.autocallscheduler.helper.RTimer
 import com.rezwan.autocallscheduler.viewmodel.AppViewModel
 import kotlinx.android.synthetic.main.activity_main.*
-import java.text.SimpleDateFormat
-import java.util.*
 
-class CallerActivity : BaseActivity(), TimerTaskListener {
+class CallerActivity : BaseActivity() {
+
     private val CALL_PHONE = Manifest.permission.CALL_PHONE
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,19 +44,16 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
     }
 
     private fun initListeners() {
-        // 仅保留确认调度按钮的点击监听
+        // 保留调度页面跳转功能
         btnConfirm.setOnClickListener {
             startActivity(Intent(this, ScheduleActivity::class.java))
         }
     }
 
-    @SuppressLint("SimpleDateFormat")
     private fun setupObservers() {
-        viewModel.permissionObservable.observe(this, Observer {
+        viewModel.permissionObservable.observe(this) {
             when (it) {
-                is AppViewModel.AppPermissions.NO_PERMISSION_REQUIRED -> {
-                    directPhoneCall()
-                }
+                is AppViewModel.AppPermissions.NO_PERMISSION_REQUIRED,
                 is AppViewModel.AppPermissions.GRANTED -> {
                     directPhoneCall()
                 }
@@ -74,53 +64,6 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
                     // Handle rationale display if needed
                 }
             }
-        })
-
-        viewModel.observeScheduler(this, Observer {
-            handleScheduledCall(it)
-        })
-    }
-
-    private fun handleScheduledCall(schedule: AppViewModel.Scheduler) {
-        try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm aa")
-            val date1 = Date()
-            val date2 = sdf.parse("${schedule.year}-${schedule.month}-${schedule.day} ${schedule.hour}:${schedule.min} ${schedule.format}")
-            error(this, "date1 $date1    ,    date2 $date2")
-
-            when {
-                date1.after(date2) -> {
-                    info("app", "Date1 is after Date2")
-                    startAutoCall()
-                }
-                date1.before(date2) -> {
-                    info("app", "Date1 is before Date2")
-                    val duration: Long = date2.time - date1.time
-                    startTimerDurationCall(duration)
-                    btnConfirm.visibility = View.INVISIBLE
-                }
-                else -> {
-                    info("app", "Date1 is equal to Date2")
-                    startAutoCall()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun startAutoCall() {
-        if (Build.VERSION.SDK_INT < 23) {
-            viewModel.permissionObservable.value = AppViewModel.AppPermissions.NO_PERMISSION_REQUIRED()
-        } else {
-            checkPermission(CALL_PHONE)
-        }
-    }
-
-    private fun startTimerDurationCall(duration: Long) {
-        RTimer(duration, 1000).apply {
-            start()
-            setListener(this@CallerActivity)
         }
     }
 
@@ -130,8 +73,8 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
         startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$phoneNo")))
     }
 
-    // 自动拨号从导入的号码列表中获取号码
-    private fun getPhoneNoFromFields() = "PREDEFINED_PHONE_NUMBER" // 替换为实际导入逻辑
+    // 从号码导入逻辑中获取电话号码
+    private fun getPhoneNoFromFields() = "PREDEFINED_PHONE_NUMBER" // 替换为实际逻辑
 
     private fun checkPermission(permission: String) {
         if (hasPermission(permission)) {
@@ -181,18 +124,6 @@ class CallerActivity : BaseActivity(), TimerTaskListener {
             grantResults.none { it == PackageManager.PERMISSION_DENIED } -> AppViewModel.AppPermissions.GRANTED()
             ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CALL_PHONE) -> AppViewModel.AppPermissions.SHOW_RATIONALE()
             else -> AppViewModel.AppPermissions.NOT_GRANTED()
-        }
-    }
-
-    override fun onTimerFinished() {
-        btnConfirm.visibility = View.VISIBLE
-        tvTimer.text = "0:00"
-        startAutoCall()
-    }
-
-    override fun onTimerTicked(remainingTime: String) {
-        runOnUiThread {
-            tvTimer.text = remainingTime
         }
     }
 }

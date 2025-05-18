@@ -1,111 +1,76 @@
-<!--
-  ~       Copyright (c) 2020. RRsaikat
-  ~
-  ~       Licensed under the Apache License, Version 2.0 (the "License");
-  ~       you may not use this file except in compliance with the License.
-  ~       You may obtain a copy of the License at
-  ~
-  ~             http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~       Unless required by applicable law or agreed to in writing,
-  ~       software distributed under the License is distributed on an "AS IS" BASIS,
-  ~       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~       See the License for the specific language governing permissions and
-  ~       limitations under the License.
-  -->
-
 <resources>
-    <string name="app_name">AutoCallScheduler</string>
-    <string name="app_details">An android app that can automatically dial a phone number. Basically it\'s a test base app of google\'s #30daysOfKotlin bootcamp. In this project there are many features of kotlin used in coding sections(e.g: when expressions, Data classes and equality, Visibility, Sealed classes, Lazy, Inline, Top level functions and parameters, Extension functions, Easier spans, Scoping out, etc). Students will find this project helpful for them in depth learning of kotlin programming in andropid development. Fell free to share and give star or fork this project. Happy coding :) \n\nProject link: https://github.com/rrsaikat/AutoCallScheduler</string>
-    <string name="title_activity_scrolling">ScrollingActivity</string>
-    <string name="large_text">
-        "Material is the metaphor.\n\n"
-
-        "A material metaphor is the unifying theory of a rationalized space and a system of motion."
-        "The material is grounded in tactile reality, inspired by the study of paper and ink, yet "
-        "technologically advanced and open to imagination and magic.\n"
-        "Surfaces and edges of the material provide visual cues that are grounded in reality. The "
-        "use of familiar tactile attributes helps users quickly understand affordances. Yet the "
-        "flexibility of the material creates new affordances that supercede those in the physical "
-        "world, without breaking the rules of physics.\n"
-        "The fundamentals of light, surface, and movement are key to conveying how objects move, "
-        "interact, and exist in space and in relation to each other. Realistic lighting shows "
-        "seams, divides space, and indicates moving parts.\n\n"
-
-        "Bold, graphic, intentional.\n\n"
-
-        "The foundational elements of print based design typography, grids, space, scale, color, "
-        "and use of imagery guide visual treatments. These elements do far more than please the "
-        "eye. They create hierarchy, meaning, and focus. Deliberate color choices, edge to edge "
-        "imagery, large scale typography, and intentional white space create a bold and graphic "
-        "interface that immerse the user in the experience.\n"
-        "An emphasis on user actions makes core functionality immediately apparent and provides "
-        "waypoints for the user.\n\n"
-
-        "Motion provides meaning.\n\n"
-
-        "Motion respects and reinforces the user as the prime mover. Primary user actions are "
-        "inflection points that initiate motion, transforming the whole design.\n"
-        "All action takes place in a single environment. Objects are presented to the user without "
-        "breaking the continuity of experience even as they transform and reorganize.\n"
-        "Motion is meaningful and appropriate, serving to focus attention and maintain continuity. "
-        "Feedback is subtle yet clear. Transitions are efﬁcient yet coherent.\n\n"
-
-        "3D world.\n\n"
-
-        "The material environment is a 3D space, which means all objects have x, y, and z "
-        "dimensions. The z-axis is perpendicularly aligned to the plane of the display, with the "
-        "positive z-axis extending towards the viewer. Every sheet of material occupies a single "
-        "position along the z-axis and has a standard 1dp thickness.\n"
-        "On the web, the z-axis is used for layering and not for perspective. The 3D world is "
-        "emulated by manipulating the y-axis.\n\n"
-
-        "Light and shadow.\n\n"
-
-        "Within the material environment, virtual lights illuminate the scene. Key lights create "
-        "directional shadows, while ambient light creates soft shadows from all angles.\n"
-        "Shadows in the material environment are cast by these two light sources. In Android "
-        "development, shadows occur when light sources are blocked by sheets of material at "
-        "various positions along the z-axis. On the web, shadows are depicted by manipulating the "
-        "y-axis only. The following example shows the card with a height of 6dp.\n\n"
-
-        "Resting elevation.\n\n"
-
-        "All material objects, regardless of size, have a resting elevation, or default elevation "
-        "that does not change. If an object changes elevation, it should return to its resting "
-        "elevation as soon as possible.\n\n"
-
-        "Component elevations.\n\n"
-
-        "The resting elevation for a component type is consistent across apps (e.g., FAB elevation "
-        "does not vary from 6dp in one app to 16dp in another app).\n"
-        "Components may have different resting elevations across platforms, depending on the depth "
-        "of the environment (e.g., TV has a greater depth than mobile or desktop).\n\n"
-
-        "Responsive elevation and dynamic elevation offsets.\n\n"
-
-        "Some component types have responsive elevation, meaning they change elevation in response "
-        "to user input (e.g., normal, focused, and pressed) or system events. These elevation "
-        "changes are consistently implemented using dynamic elevation offsets.\n"
-        "Dynamic elevation offsets are the goal elevation that a component moves towards, relative "
-        "to the component’s resting state. They ensure that elevation changes are consistent "
-        "across actions and component types. For example, all components that lift on press have "
-        "the same elevation change relative to their resting elevation.\n"
-        "Once the input event is completed or cancelled, the component will return to its resting "
-        "elevation.\n\n"
-
-        "Avoiding elevation interference.\n\n"
-
-        "Components with responsive elevations may encounter other components as they move between "
-        "their resting elevations and dynamic elevation offsets. Because material cannot pass "
-        "through other material, components avoid interfering with one another any number of ways, "
-        "whether on a per component basis or using the entire app layout.\n"
-        "On a component level, components can move or be removed before they cause interference. "
-        "For example, a floating action button (FAB) can disappear or move off screen before a "
-        "user picks up a card, or it can move if a snackbar appears.\n"
-        "On the layout level, design your app layout to minimize opportunities for interference. "
-        "For example, position the FAB to one side of stream of a cards so the FAB won’t interfere "
-        "when a user tries to pick up one of cards.\n\n"
+    <string name="app_name">自动拨号计划</string>
+    <string name="app_details">
+        一个可以自动拨打电话号码的安卓应用。基本上，这是谷歌#30daysOfKotlin训练营的一个测试基础应用。
+        在这个项目中，代码部分使用了许多Kotlin的特性（如：when表达式、数据类和相等性、可见性、密封类、懒加载、内联、顶级函数和参数、扩展函数、简单的跨度、作用域等）。
+        学生会发现这个项目对深入学习Kotlin编程和安卓开发很有帮助。欢迎分享并给这个项目加星或分支。祝编码愉快！😊
+        \n\n项目链接：https://github.com/mycoder789/autocallscheduler
     </string>
-    <string name="action_settings">Settings</string>
+    <string name="title_activity_scrolling">滚动活动</string>
+    <string name="large_text">
+        "材料是隐喻。\n\n"
+
+        "材料隐喻是一个理性化空间和运动系统的统一理论。"
+        "材料扎根于触觉现实，受到纸张和墨水研究的启发，同时又具有技术先进性，充满想象力和魔力。\n"
+        "材料的表面和边缘提供了基于现实的视觉提示。"
+        "熟悉的触觉属性帮助用户快速理解功能。然而，材料的灵活性创造了新的功能，超越了物理世界中的功能，同时不违反物理规则。\n"
+        "光线、表面和运动的基本原理是传达物体如何移动、互动以及在空间中相互存在的关键。"
+        "真实的光照显示出接缝、划分空间，并指示移动部件。\n\n"
+
+        "大胆、图形化、有意图。\n\n"
+
+        "基于印刷设计的基本元素，如排版、网格、空间、比例、颜色和图像的使用，指导了视觉处理。"
+        "这些元素不仅仅是取悦眼睛。它们创造了层次结构、意义和焦点。"
+        "精心选择的颜色、边到边的图像、大规模的排版和有意的留白，创造了一个大胆的图形界面，让用户沉浸在体验中。\n"
+        "对用户操作的重视使核心功能立即显现，并为用户提供指引。\n\n"
+
+        "运动赋予意义。\n\n"
+
+        "运动尊重并强化用户作为核心驱动者的角色。"
+        "主要的用户操作是触发运动的拐点，改变整个设计。\n"
+        "所有动作都发生在单一环境中。物体以不破坏体验连续性的方式呈现给用户，即使它们发生变化和重新组织。\n"
+        "运动是有意义且合适的，旨在集中注意力并保持连续性。"
+        "反馈微妙但清晰。过渡高效但连贯。\n\n"
+
+        "3D 世界。\n\n"
+
+        "材料环境是一个 3D 空间，这意味着所有物体都有 x、y 和 z 轴。"
+        "z 轴垂直于显示平面排列，正 z 轴向观察者延伸。"
+        "每张材料片占据 z 轴上的单一位置，并具有标准的 1dp 厚度。\n"
+        "在网页上，z 轴用于分层，而不是用于透视。3D 世界通过操纵 y 轴来模拟。\n\n"
+
+        "光与影。\n\n"
+
+        "在材料环境中，虚拟光源照亮场景。"
+        "主光源产生方向性阴影，而环境光从各个角度产生柔和阴影。\n"
+        "材料环境中的阴影由这两种光源投射而成。在安卓开发中，阴影发生在光源被位于不同 z 轴位置的材料片阻挡时。"
+        "在网页上，阴影通过操纵 y 轴来表现。\n\n"
+
+        "静止高度。\n\n"
+
+        "所有材料对象，无论大小，都有一个静止高度或默认高度，这不会改变。"
+        "如果对象的高度发生变化，它应尽快恢复到其静止高度。\n\n"
+
+        "组件高度。\n\n"
+
+        "组件类型的静止高度在应用中是一致的（例如，FAB 的高度在一个应用中是 6dp 而不是在另一个应用中是 16dp）。"
+        "组件在不同平台上的静止高度可能会有所不同，具体取决于环境的深度（例如，电视比移动或桌面环境更深）。\n\n"
+
+        "响应高度和动态高度偏移。\n\n"
+
+        "某些组件类型具有响应高度，这意味着它们会根据用户输入（如正常、聚焦和按压）或系统事件改变高度。"
+        "这些高度变化通过动态高度偏移一致实现。\n"
+        "动态高度偏移是组件相对于其静止状态移动的目标高度。"
+        "它们确保高度变化在操作和组件类型之间是一致的。\n"
+        "例如，所有按压时提升的组件的高度变化相对于其静止高度是相同的。\n"
+        "一旦输入事件完成或取消，组件将返回到其静止高度。\n\n"
+
+        "避免高度干扰。\n\n"
+
+        "具有响应高度的组件可能在其静止高度和动态高度偏移之间移动时遇到其他组件。"
+        "由于材料不能穿过其他材料，组件通过多种方式避免相互干扰，无论是在每个组件的基础上还是使用整个应用布局。\n"
+        "在组件级别，组件可以移动或在引起干扰之前被移除。例如，浮动操作按钮（FAB）可以在用户选取卡片之前消失或移至屏幕外，或者在 snackbar 出现时移动。\n"
+        "在布局级别，设计您的应用布局，以最大限度地减少干扰的机会。例如，将 FAB 放在卡片流的一侧，这样用户尝试选取卡片时 FAB 不会干扰。\n\n"
+    </string>
+    <string name="action_settings">设置</string>
 </resources>
